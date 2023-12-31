@@ -15,12 +15,16 @@ import urllib.parse
 # Plugin Code
 class Plugin:
     def __init__(self):
-        self.config = config
-        self.http = urllib3.PoolManager()
+        return
 
     def execute(self, config, temperaturedata):
-        log = logging.getLogger('TEMP')
-        log.info('Starting plugin: TEMP')
+        log = logging.getLogger(__name__)
+        log.info('Starting plugin: ' + __name__)
+
+        configfile = os.path.dirname(os.path.realpath(__file__)) + '/' + __name__ + '.ini'
+        pluginconfig = ConfigParser()
+        pluginconfig.read(configfile)
+        log.info('ini read from: ' + configfile)
 
         with open("/home/pi/Start/rfid.txt", "r") as f1:
             rfid = f1.read().strip()
