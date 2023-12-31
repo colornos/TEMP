@@ -36,7 +36,7 @@ class Plugin:
         else:
             temperature = temperaturedata[0]['temperature']
             headers = {
-                'User-Agent': 'RaspberryPi/MBP70.py',
+                'User-Agent': 'RaspberryPi/TEMP.py',
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
             form_data = {'rfid': rfid, 'one': temperature}
