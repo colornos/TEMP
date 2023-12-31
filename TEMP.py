@@ -106,7 +106,7 @@ def init_ble_mode():
         return False
 
 config = ConfigParser()
-config.read('/home/pi/Start/TEMP/TEMPPlugin.ini')
+config.read('/home/pi/Start/TEMP/TEMP.ini')
 
 # Logging setup
 numeric_level = getattr(logging, config.get('Program', 'loglevel').upper(), None)
