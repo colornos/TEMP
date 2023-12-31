@@ -45,7 +45,7 @@ class Plugin:
             response = r.data.decode('utf-8')
             with open("/home/pi/Start/plugin_response.txt", "w") as f2:
                 f2.write(response)
-            log.info('Finished plugin: TEMP')
+            log.info('Finished plugin: ' + __name__)
             return response
 
 # Main Script Code
