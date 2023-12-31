@@ -134,7 +134,7 @@ if not init_ble_mode():
 adapter = pygatt.backends.GATTToolBackend()
 adapter.start()
 
-plugin = Plugin(config)  # Instantiate the plugin
+plugin = Plugin(config)
 
 while True:
     wait_for_device(device_name)
