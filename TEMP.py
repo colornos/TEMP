@@ -160,4 +160,4 @@ while True:
             log.info('Done receiving data from temperature thermometer')
             if temperaturedata:
                 temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
-                plugin.execute(config, temperaturedatasorted)  # Call execute on the plugin instance directly
+                plugin.execute(temperaturedatasorted)
