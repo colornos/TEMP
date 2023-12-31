@@ -160,5 +160,3 @@ while True:
             if temperaturedata:
                 temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
                 plugin.execute(config, temperaturedatasorted)
-            else:
-                log.error('Unreliable data received. Unable to process')
