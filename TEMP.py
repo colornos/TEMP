@@ -18,7 +18,7 @@ class Plugin:
         self.config = config
         self.http = urllib3.PoolManager()
 
-    def execute(self, config, temperaturedata):
+    def execute(self, temperaturedata):
         log = logging.getLogger('TEMP')
         log.info('Starting plugin: TEMP')
 
