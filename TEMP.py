@@ -14,17 +14,13 @@ import urllib.parse
 
 # Plugin Code
 class Plugin:
-    def __init__(self):
+    def __init__(self, config):
+        self.config = config
         self.http = urllib3.PoolManager()
 
     def execute(self, config, temperaturedata):
         log = logging.getLogger(__name__)
         log.info('Starting plugin: ' + __name__)
-
-        configfile = os.path.dirname(os.path.realpath(__file__)) + '/' + __name__ + '.ini'
-        pluginconfig = ConfigParser()
-        pluginconfig.read(configfile)
-        log.info('ini read from: ' + configfile)
 
         with open("/home/pi/Start/rfid.txt", "r") as f1:
             rfid = f1.read().strip()
@@ -138,7 +134,7 @@ if not init_ble_mode():
 adapter = pygatt.backends.GATTToolBackend()
 adapter.start()
 
-plugin = Plugin()  # Instantiate the plugin
+plugin = Plugin(config)  # Instantiate the plugin
 
 while True:
     wait_for_device(device_name)
