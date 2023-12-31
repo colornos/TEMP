@@ -106,7 +106,7 @@ def init_ble_mode():
         return False
 
 config = ConfigParser()
-config.read('/home/pi/Start/MBP70/MBP70.ini')
+config.read('/home/pi/Start/TEMP/TEMP.ini')
 
 # Logging setup
 numeric_level = getattr(logging, config.get('Program', 'loglevel').upper(), None)
@@ -131,7 +131,7 @@ else:
     addresstype = pygatt.BLEAddressType.random
     time_offset = 0
 
-log.info('MBP70 Started')
+log.info('TEMP Started')
 if not init_ble_mode():
     sys.exit()
 
