@@ -19,8 +19,8 @@ class Plugin:
         self.http = urllib3.PoolManager()
 
     def execute(self, config, temperaturedata):
-        log = logging.getLogger(__name__)
-        log.info('Starting plugin: ' + __name__)
+        log = logging.getLogger('TEMP')
+        log.info('Starting plugin: TEMP')
 
         with open("/home/pi/Start/rfid.txt", "r") as f1:
             rfid = f1.read().strip()
@@ -41,7 +41,7 @@ class Plugin:
             response = r.data.decode('utf-8')
             with open("/home/pi/Start/plugin_response.txt", "w") as f2:
                 f2.write(response)
-            log.info('Finished plugin: ' + __name__)
+            log.info('Finished plugin: TEMP')
             return response
 
 # Main Script Code
