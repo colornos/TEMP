@@ -15,7 +15,7 @@ import urllib.parse
 # Plugin Code
 class Plugin:
     def __init__(self):
-        return
+        self.http = urllib3.PoolManager()
 
     def execute(self, config, temperaturedata):
         log = logging.getLogger(__name__)
