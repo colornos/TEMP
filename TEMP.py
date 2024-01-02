@@ -193,48 +193,60 @@ adapter.start()
 
 plugin = Plugin()
 CHECK_INTERVAL = 10  # seconds
+MAX_RETRY_COUNT = 3  # Maximum number of retries for connecting to the sensor
+RETRY_DELAY = 5  # Delay in seconds between retries
+ADAPTER_RESET_DELAY = 10  # Delay after resetting the BLE adapter
 
 while True:
     try:
-        # Check if the sensor is available
         if wait_for_device(device_name, timeout=15):
-            # Attempt to connect to the sensor
-            device = connect_device(ble_address)
-            if device is not None:
-                # Sensor is active, perform necessary operations
-                temperaturedata = []
-                handle_temperature = device.get_handle(Char_temperature)
-                continue_comms = True
+            retry_count = 0
+            while retry_count < MAX_RETRY_COUNT:
+                device = connect_device(ble_address)
+                if device:
+                    temperaturedata = []
+                    handle_temperature = device.get_handle(Char_temperature)
+                    continue_comms = True
 
-                try:
-                    device.subscribe(Char_temperature, callback=processIndication, indication=True)
-                except pygatt.exceptions.NotConnectedError:
-                    continue_comms = False
-
-                if continue_comms:
-                    log.info('Waiting for notifications for another 30 seconds')
-                    time.sleep(30)
-                    # Insert additional code for handling the temperature data here if necessary
-
-                    # After operations, disconnect to handle sensor turning off
                     try:
-                        device.disconnect()
+                        device.subscribe(Char_temperature, callback=processIndication, indication=True)
                     except pygatt.exceptions.NotConnectedError:
-                        log.info('Sensor disconnected or not reachable.')
+                        continue_comms = False
 
-                    log.info('Done receiving data from temperature thermometer')
-                    if temperaturedata:
-                        temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
-                        plugin.execute(config, temperaturedatasorted)
+                    if continue_comms:
+                        log.info('Waiting for notifications for another 30 seconds')
+                        time.sleep(30)
+                        # Insert additional code for handling the temperature data here if necessary
 
-            else:
-                log.warning("Sensor found but unable to connect. Will retry later.")
+                        try:
+                            device.disconnect()
+                        except pygatt.exceptions.NotConnectedError:
+                            log.info('Sensor disconnected or not reachable.')
+
+                        log.info('Done receiving data from temperature thermometer')
+                        if temperaturedata:
+                            temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
+                            plugin.execute(config, temperaturedatasorted)
+
+                        break  # Successful operation, exit retry loop
+                    else:
+                        retry_count += 1
+                        log.warning(f"Retry {retry_count} for connecting to the sensor.")
+                        time.sleep(RETRY_DELAY)
+
+                if retry_count >= MAX_RETRY_COUNT:
+                    log.error("Max retries reached. Unable to connect to the sensor.")
+                    break
+
         else:
             log.debug("Sensor not active. Will check again later.")
 
-        # Wait for a while before checking again to reduce resource usage
-        time.sleep(CHECK_INTERVAL)  # CHECK_INTERVAL can be a few minutes
+        time.sleep(CHECK_INTERVAL)
 
+    except pygatt.exceptions.BLEError as ble_error:
+        log.error(f"BLE Error encountered: {ble_error}. Resetting adapter.")
+        adapter.reset()
+        time.sleep(ADAPTER_RESET_DELAY)
     except Exception as e:
         log.error(f"An error occurred: {e}")
-        time.sleep(ERROR_RECOVERY_DELAY)  # Delay before retrying
+        time.sleep(ERROR_RECOVERY_DELAY)
