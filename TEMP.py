@@ -1,7 +1,8 @@
+#!/usr/bin/python3
+
 import sys
 import pygatt.backends
 import logging
-from logging.handlers import RotatingFileHandler
 from configparser import ConfigParser
 import time
 import subprocess
@@ -10,23 +11,6 @@ import os
 import threading
 import urllib3
 import urllib.parse
-
-# Set up log rotation
-log_file = '/home/pi/Start/sensor_manager.log'
-max_log_size = 10 * 1024 * 1024  # 10 MB
-backup_count = 3  # Keep three backup files
-
-# Configure logging with rotation
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s',
-    datefmt='%a, %d %b %Y %H:%M:%S',
-    handlers=[RotatingFileHandler(log_file, maxBytes=max_log_size, backupCount=backup_count)]
-)
-log = logging.getLogger(__name__)
-
-# Global variables
-ERROR_RECOVERY_DELAY = 10  # seconds
 
 # Plugin Code
 class Plugin:
@@ -119,14 +103,14 @@ def processIndication(handle, values):
     else:
         log.debug('Unhandled Indication encountered')
 
-def wait_for_device(devname, timeout=30):
+def wait_for_device(devname):
     found = False
-    start_time = time.time()
-    while not found and (time.time() - start_time) < timeout:
+    while not found:
         try:
             found = adapter.filtered_scan(devname)
             if found:
                 log.info(f"Device {devname} found.")
+                break  # Exit the loop once the device is found
             else:
                 log.debug(f"Device {devname} not found. Retrying...")
             time.sleep(1)  # Sleep for 1 second before retrying
@@ -192,61 +176,29 @@ adapter = pygatt.backends.GATTToolBackend()
 adapter.start()
 
 plugin = Plugin()
-CHECK_INTERVAL = 60  # seconds
-MAX_RETRY_COUNT = 10  # Maximum number of retries for connecting to the sensor
-RETRY_DELAY = 30  # Delay in seconds between retries
-ADAPTER_RESET_DELAY = 30  # Delay after resetting the BLE adapter
 
 while True:
-    try:
-        if wait_for_device(device_name, timeout=30):
-            retry_count = 0
-            while retry_count < MAX_RETRY_COUNT:
-                device = connect_device(ble_address)
-                if device:
-                    temperaturedata = []
-                    handle_temperature = device.get_handle(Char_temperature)
-                    continue_comms = True
+    wait_for_device(device_name)
+    device = connect_device(ble_address)
+    if device:
+        temperaturedata = []
+        handle_temperature = device.get_handle(Char_temperature)
+        continue_comms = True
 
-                    try:
-                        device.subscribe(Char_temperature, callback=processIndication, indication=True)
-                    except pygatt.exceptions.NotConnectedError:
-                        continue_comms = False
+        try:
+            device.subscribe(Char_temperature, callback=processIndication, indication=True)
+        except pygatt.exceptions.NotConnectedError:
+            continue_comms = False
 
-                    if continue_comms:
-                        log.info('Waiting for notifications for another 30 seconds')
-                        time.sleep(30)
-                        # Insert additional code for handling the temperature data here if necessary
+        if continue_comms:
+            log.info('Waiting for notifications for another 30 seconds')
+            time.sleep(30)
+            try:
+                device.disconnect()
+            except pygatt.exceptions.NotConnectedError:
+                log.info('Could not disconnect...')
 
-                        try:
-                            device.disconnect()
-                        except pygatt.exceptions.NotConnectedError:
-                            log.info('Sensor disconnected or not reachable.')
-
-                        log.info('Done receiving data from temperature thermometer')
-                        if temperaturedata:
-                            temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
-                            plugin.execute(config, temperaturedatasorted)
-
-                        break  # Successful operation, exit retry loop
-                    else:
-                        retry_count += 1
-                        log.warning(f"Retry {retry_count} for connecting to the sensor.")
-                        time.sleep(RETRY_DELAY)
-
-                if retry_count >= MAX_RETRY_COUNT:
-                    log.error("Max retries reached. Unable to connect to the sensor.")
-                    break
-
-        else:
-            log.debug("Sensor not active. Will check again later.")
-
-        time.sleep(CHECK_INTERVAL)
-
-    except pygatt.exceptions.BLEError as ble_error:
-        log.error(f"BLE Error encountered: {ble_error}. Resetting adapter.")
-        adapter.reset()
-        time.sleep(ADAPTER_RESET_DELAY)
-    except Exception as e:
-        log.error(f"An error occurred: {e}")
-        time.sleep(ERROR_RECOVERY_DELAY)
+            log.info('Done receiving data from temperature thermometer')
+            if temperaturedata:
+                temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
+                plugin.execute(config, temperaturedatasorted)
