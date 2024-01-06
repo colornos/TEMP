@@ -129,14 +129,21 @@ def wait_for_device(devname, timeout=30):
 
 def connect_device(address):
     device_connected = False
-    tries = 3
+    max_tries = 5  # Increase the number of tries here
     device = None
-    while not device_connected and tries > 0:
+
+    for attempt in range(max_tries):
         try:
             device = adapter.connect(address, 8, addresstype)
             device_connected = True
+            break  # Exit the loop if connection is successful
         except pygatt.exceptions.NotConnectedError:
-            tries -= 1
+            log.warning(f"Attempt {attempt + 1} failed to connect. Retrying...")
+            time.sleep(1)  # You might adjust this delay based on your needs
+
+    if not device_connected:
+        log.error(f"Failed to connect after {max_tries} attempts.")
+
     return device
 
 def init_ble_mode():
