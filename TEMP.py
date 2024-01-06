@@ -103,7 +103,7 @@ def processIndication(handle, values):
     else:
         log.debug('Unhandled Indication encountered')
 
-def wait_for_device(devname, timeout=30):
+def wait_for_device(devname, timeout=1800):
     found = False
     start_time = time.time()
 
@@ -129,21 +129,14 @@ def wait_for_device(devname, timeout=30):
 
 def connect_device(address):
     device_connected = False
-    max_tries = 5  # Increase the number of tries here
+    tries = 5
     device = None
-
-    for attempt in range(max_tries):
+    while not device_connected and tries > 0:
         try:
             device = adapter.connect(address, 8, addresstype)
             device_connected = True
-            break  # Exit the loop if connection is successful
         except pygatt.exceptions.NotConnectedError:
-            log.warning(f"Attempt {attempt + 1} failed to connect. Retrying...")
-            time.sleep(1)  # You might adjust this delay based on your needs
-
-    if not device_connected:
-        log.error(f"Failed to connect after {max_tries} attempts.")
-
+            tries -= 1
     return device
 
 def init_ble_mode():
