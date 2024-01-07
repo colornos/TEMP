@@ -103,29 +103,24 @@ def processIndication(handle, values):
     else:
         log.debug('Unhandled Indication encountered')
 
-def wait_for_device(devname, timeout=1800):
-    found = False
-    start_time = time.time()
+def continuous_scan(devname):
+    while True:
+        found = scan_for_device(devname)
+        if found:
+            log.info(f"{devname} found, proceeding with connection and data handling.")
+            break
+        time.sleep(60)  # Adjust as needed for efficient scanning
 
-    while not found and (time.time() - start_time) < timeout:
-        try:
-            found_devices = adapter.scan(timeout=5)  # Reduced scan time for quicker response
-            for device in found_devices:
-                if device['name'] == devname:
-                    found = True
-                    log.info(f"{devname} found.")
-                    break
-            if not found:
-                log.debug(f"{devname} not found, retrying...")
-            time.sleep(1)  # Brief sleep before retrying
-        except pygatt.exceptions.BLEError as e:
-            log.error(f"BLE error encountered: {e}. Resetting adapter.")
-            adapter.reset()
-            time.sleep(1)  # Reduced sleep after resetting
-
-    if not found:
-        log.warning(f"Timeout reached. {devname} not found.")
-    return found
+def scan_for_device(devname):
+    try:
+        found_devices = adapter.scan(timeout=5)
+        for device in found_devices:
+            if device['name'] == devname:
+                return True
+    except pygatt.exceptions.BLEError as e:
+        log.error(f"BLE error encountered: {e}")
+        adapter.reset()
+    return False
 
 def connect_device(address):
     device_connected = False
@@ -139,8 +134,10 @@ def connect_device(address):
         except pygatt.exceptions.NotConnectedError as e:
             log.error(f"Connection attempt failed: {e}")
             tries -= 1
-            # Optional: Add a delay here if needed
             time.sleep(1)  # Delay between retries
+        except Exception as e:
+            log.error(f"Unexpected error: {e}")
+            break  # Exit loop on unexpected errors
 
     return device
 
@@ -189,28 +186,30 @@ adapter.start()
 
 plugin = Plugin()
 
-while True:
-    wait_for_device(device_name)
-    device = connect_device(ble_address)
-    if device:
-        temperaturedata = []
-        handle_temperature = device.get_handle(Char_temperature)
-        continue_comms = True
+# Replace wait_for_device with continuous_scan
+continuous_scan(device_name)
 
+# Proceed with the rest of the script
+device = connect_device(ble_address)
+if device:
+    temperaturedata = []
+    handle_temperature = device.get_handle(Char_temperature)
+    continue_comms = True
+
+    try:
+        device.subscribe(Char_temperature, callback=processIndication, indication=True)
+    except pygatt.exceptions.NotConnectedError:
+        continue_comms = False
+
+    if continue_comms:
+        log.info('Waiting for notifications for another 30 seconds')
+        time.sleep(30)
         try:
-            device.subscribe(Char_temperature, callback=processIndication, indication=True)
+            device.disconnect()
         except pygatt.exceptions.NotConnectedError:
-            continue_comms = False
+            log.info('Could not disconnect...')
 
-        if continue_comms:
-            log.info('Waiting for notifications for another 30 seconds')
-            time.sleep(30)
-            try:
-                device.disconnect()
-            except pygatt.exceptions.NotConnectedError:
-                log.info('Could not disconnect...')
-
-            log.info('Done receiving data from temperature thermometer')
-            if temperaturedata:
-                temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
-                plugin.execute(config, temperaturedatasorted)
+        log.info('Done receiving data from temperature thermometer')
+        if temperaturedata:
+            temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
+            plugin.execute(config, temperaturedatasorted)
