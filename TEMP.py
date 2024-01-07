@@ -9,13 +9,12 @@ import urllib3
 import urllib.parse
 from struct import *
 
-# Plugin Code
+# Plugin Class
 class Plugin:
     def __init__(self):
         self.http = urllib3.PoolManager()
 
     def get_pi_info(self):
-        # Simplified Pi info extraction
         pi_info_keys = ['Hardware', 'Revision', 'Serial', 'Model']
         pi_info = {key.lower(): '' for key in pi_info_keys}
         try:
@@ -31,7 +30,6 @@ class Plugin:
     def execute(self, config, temperature_data):
         log = logging.getLogger(__name__)
         log.info('Starting plugin: ' + __name__)
-
         pi_info = self.get_pi_info()
 
         try:
@@ -49,18 +47,8 @@ class Plugin:
                 f2.write("No card")
         else:
             temperature = temperature_data[0]['temperature']
-            headers = {
-                'User-Agent': 'RaspberryPi/TEMP.py',
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-
-            form_data = {
-                'rfid': rfid,
-                'one': temperature,
-                'pin': pin,
-                **pi_info
-            }
-
+            headers = {'User-Agent': 'RaspberryPi/TEMP.py', 'Content-Type': 'application/x-www-form-urlencoded'}
+            form_data = {'rfid': rfid, 'one': temperature, 'pin': pin, **pi_info}
             encoded_data = urllib.parse.urlencode(form_data)
             r = self.http.request('POST', 'https://colornos.com/sensors/temperature.php', body=encoded_data, headers=headers)
             response = r.data.decode('utf-8')
@@ -173,8 +161,11 @@ def main():
     except Exception as e:
         log.error(f"An error occurred: {e}")
     finally:
-        adapter.stop()
-        log.info("Adapter stopped")
+        try:
+            adapter.stop()
+            log.info("Adapter stopped")
+        except Exception as e:
+            log.error(f"Error stopping adapter: {e}")
 
 if __name__ == "__main__":
     main()
