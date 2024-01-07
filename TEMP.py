@@ -141,14 +141,16 @@ def main():
 
     log = logging.getLogger(__name__)
     adapter = pygatt.backends.GATTToolBackend()
-    plugin = Plugin()
-    ble_address = config.get('TEMP', 'ble_address')
-    device_name = config.get('TEMP', 'device_name')
-    device_model = config.get('TEMP', 'device_model')
 
-    addresstype = pygatt.BLEAddressType.public if device_model == 'MBP70' else pygatt.BLEAddressType.random
+    try:
+        adapter.start()
+        plugin = Plugin()
+        ble_address = config.get('TEMP', 'ble_address')
+        device_name = config.get('TEMP', 'device_name')
+        device_model = config.get('TEMP', 'device_model')
 
-    with adapter:
+        addresstype = pygatt.BLEAddressType.public if device_model == 'MBP70' else pygatt.BLEAddressType.random
+
         if wait_for_device(adapter, device_name, log):
             device = connect_device(adapter, ble_address, log, addresstype)
             if device:
@@ -168,6 +170,11 @@ def main():
                 if temperature_data:
                     sorted_data = sorted(temperature_data, key=lambda k: k['timestamp'], reverse=True)
                     plugin.execute(config, sorted_data)
+    except Exception as e:
+        log.error(f"An error occurred: {e}")
+    finally:
+        adapter.stop()
+        log.info("Adapter stopped")
 
 if __name__ == "__main__":
     main()
