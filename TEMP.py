@@ -151,65 +151,66 @@ def init_ble_mode():
         log.info(err)
         return False
 
-config = ConfigParser()
-config.read('/home/pi/Start/TEMP/TEMP.ini')
+# Main Execution
+if __name__ == "__main__":
+    config = ConfigParser()
+    config.read('/home/pi/Start/TEMP/TEMP.ini')
 
-# Logging setup
-numeric_level = getattr(logging, config.get('Program', 'loglevel').upper(), None)
-if not isinstance(numeric_level, int):
-    raise ValueError('Invalid log level: %s' % loglevel)
-logging.basicConfig(level=numeric_level, format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s', datefmt='%a, %d %b %Y %H:%M:%S', filename=config.get('Program', 'logfile'), filemode='w')
-log = logging.getLogger(__name__)
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(numeric_level)
-formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(funcName)s %(message)s')
-ch.setFormatter(formatter)
-log.addHandler(ch)
+    # Logging setup
+    numeric_level = getattr(logging, config.get('Program', 'loglevel').upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+    logging.basicConfig(level=numeric_level, format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s', datefmt='%a, %d %b %Y %H:%M:%S', filename=config.get('Program', 'logfile'), filemode='w')
+    log = logging.getLogger(__name__)
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setLevel(numeric_level)
+    formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(funcName)s %(message)s')
+    ch.setFormatter(formatter)
+    log.addHandler(ch)
 
-ble_address = config.get('TEMP', 'ble_address')
-device_name = config.get('TEMP', 'device_name')
-device_model = config.get('TEMP', 'device_model')
+    ble_address = config.get('TEMP', 'ble_address')
+    device_name = config.get('TEMP', 'device_name')
+    device_model = config.get('TEMP', 'device_model')
 
-if device_model == 'MBP70':
-    addresstype = pygatt.BLEAddressType.public
-    time_offset = 0
-else:
-    addresstype = pygatt.BLEAddressType.random
-    time_offset = 0
+    if device_model == 'MBP70':
+        addresstype = pygatt.BLEAddressType.public
+        time_offset = 0
+    else:
+        addresstype = pygatt.BLEAddressType.random
+        time_offset = 0
 
-log.info('TEMP Started')
-if not init_ble_mode():
-    sys.exit()
+    log.info('TEMP Started')
+    if not init_ble_mode():
+        sys.exit()
 
-adapter = pygatt.backends.GATTToolBackend()
-adapter.start()
+    adapter = pygatt.backends.GATTToolBackend()
+    adapter.start()
 
-plugin = Plugin()
+    plugin = Plugin()
 
-# Replace wait_for_device with continuous_scan
-continuous_scan(device_name)
+    while True:
+        continuous_scan(device_name)
 
-# Proceed with the rest of the script
-device = connect_device(ble_address)
-if device:
-    temperaturedata = []
-    handle_temperature = device.get_handle(Char_temperature)
-    continue_comms = True
+        device = connect_device(ble_address)
+        if device:
+            temperaturedata = []
+            handle_temperature = device.get_handle(Char_temperature)
+            continue_comms = True
 
-    try:
-        device.subscribe(Char_temperature, callback=processIndication, indication=True)
-    except pygatt.exceptions.NotConnectedError:
-        continue_comms = False
+            try:
+                device.subscribe(Char_temperature, callback=processIndication, indication=True)
+            except pygatt.exceptions.NotConnectedError:
+                continue_comms = False
 
-    if continue_comms:
-        log.info('Waiting for notifications for another 30 seconds')
-        time.sleep(30)
-        try:
-            device.disconnect()
-        except pygatt.exceptions.NotConnectedError:
-            log.info('Could not disconnect...')
+            if continue_comms:
+                log.info('Waiting for notifications for another 30 seconds')
+                time.sleep(30)
+                try:
+                    device.disconnect()
+                except pygatt.exceptions.NotConnectedError:
+                    log.info('Could not disconnect...')
 
-        log.info('Done receiving data from temperature thermometer')
-        if temperaturedata:
-            temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
-            plugin.execute(config, temperaturedatasorted)
+                log.info('Done receiving data from temperature thermometer')
+                if temperaturedata:
+                    temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
+                    plugin.execute(config, temperaturedatasorted)
