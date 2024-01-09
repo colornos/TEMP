@@ -152,7 +152,7 @@ def init_ble_mode():
         return False
 
 # Main Execution
-if __name__ == "__main__":
+def main():
     config = ConfigParser()
     config.read('/home/pi/Start/TEMP/TEMP.ini')
 
@@ -209,9 +209,6 @@ if __name__ == "__main__":
                 device.disconnect()
             except pygatt.exceptions.NotConnectedError:
                 log.info('Could not disconnect...')
-            finally:
-                adapter.stop()
-                adapter.start()
 
             if temperaturedata:
                 temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
@@ -219,6 +216,10 @@ if __name__ == "__main__":
     except Exception as e:
         log.error(f"Error in TEMP script: {e}")
     finally:
-        if adapter.is_connected():
-            adapter.disconnect()
-        adapter.stop()
+        try:
+            adapter.stop()
+        except Exception as e:
+            log.error(f"Error stopping BLE adapter: {e}")
+
+if __name__ == "__main__":
+    main()
