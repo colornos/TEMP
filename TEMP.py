@@ -12,6 +12,10 @@ import threading
 import urllib3
 import urllib.parse
 
+# Setup logging at the top level of the script
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s', datefmt='%a, %d %b %Y %H:%M:%S')
+log = logging.getLogger(__name__)
+
 # Plugin Code
 class Plugin:
     def __init__(self):
@@ -156,11 +160,16 @@ def main():
     config = ConfigParser()
     config.read('/home/pi/Start/TEMP/TEMP.ini')
 
-    # Logging setup
     numeric_level = getattr(logging, config.get('Program', 'loglevel').upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % loglevel)
-    logging.basicConfig(level=numeric_level, format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s', datefmt='%a, %d %b %Y %H:%M:%S', filename=config.get('Program', 'logfile'), filemode='w')
+        raise ValueError('Invalid log level: %s' % config.get('Program', 'loglevel'))
+    
+    # Reconfigure logging if needed
+    if numeric_level != logging.root.level:
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+        logging.basicConfig(level=numeric_level, format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s', datefmt='%a, %d %b %Y %H:%M:%S', filename=config.get('Program', 'logfile'), filemode='w')
+
     log = logging.getLogger(__name__)
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(numeric_level)
