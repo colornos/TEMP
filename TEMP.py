@@ -12,6 +12,8 @@ import threading
 import urllib3
 import urllib.parse
 
+adapter = pygatt.backends.GATTToolBackend()
+
 # Setup logging at the top level of the script
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s', datefmt='%a, %d %b %Y %H:%M:%S')
 log = logging.getLogger(__name__)
@@ -170,6 +172,9 @@ def main():
             logging.root.removeHandler(handler)
         logging.basicConfig(level=numeric_level, format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s', datefmt='%a, %d %b %Y %H:%M:%S', filename=config.get('Program', 'logfile'), filemode='w')
 
+    global adapter  # Use global to refer to the adapter defined at the top level
+    adapter.start()
+    
     log = logging.getLogger(__name__)
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(numeric_level)
