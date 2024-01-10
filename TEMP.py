@@ -213,3 +213,9 @@ if device:
         if temperaturedata:
             temperaturedatasorted = sorted(temperaturedata, key=lambda k: k['timestamp'], reverse=True)
             plugin.execute(config, temperaturedatasorted)
+
+# Signal completion to sensor_manager.py
+with open('/home/pi/Start/script_complete.txt', 'w') as file:
+    file.write('Completed')
+
+log.info('TEMP script completed')
