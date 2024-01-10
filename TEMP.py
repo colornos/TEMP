@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import sys
 import pygatt.backends
 import logging
@@ -13,7 +15,6 @@ import urllib.parse
 # Plugin Code
 class Plugin:
     def __init__(self):
-        # Initialize the HTTP connection manager
         self.http = urllib3.PoolManager()
 
     def get_pi_info(self):
@@ -40,75 +41,65 @@ class Plugin:
 
         pi_info = self.get_pi_info()  # Get Raspberry Pi info
 
-        # Read RFID and PIN from files
         with open("/home/pi/Start/rfid.txt", "r") as f1:
             rfid = f1.read().strip()
+
         with open("/home/pi/Start/pin.txt", "r") as f3:
             pin = f3.read().strip()
 
         if not rfid:
-            log.info("No card")
+            print("No card")
             with open("/home/pi/Start/plugin_response.txt", "w") as f2:
                 f2.write("No card")
-            return
+        else:
+            temperature = temperaturedata[0]['temperature']
+            headers = {
+                'User-Agent': 'RaspberryPi/TEMP.py',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
 
-        temperature = temperaturedata[0]['temperature']
-        headers = {
-            'User-Agent': 'RaspberryPi/TEMP.py',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
+            # Prepare form data with temperature data and specific Raspberry Pi info
+            form_data = {
+                'rfid': rfid,
+                'one': temperature,
+                'pin': pin,
+                'hardware': pi_info['hardware'],
+                'revision': pi_info['revision'],
+                'serial': pi_info['serial'],
+                'model': pi_info['model']
+            }
 
-        # Prepare form data with temperature data and specific Raspberry Pi info
-        form_data = {
-            'rfid': rfid,
-            'one': temperature,
-            'pin': pin,
-            'hardware': pi_info['hardware'],
-            'revision': pi_info['revision'],
-            'serial': pi_info['serial'],
-            'model': pi_info['model']
-        }
-
-        encoded_data = urllib.parse.urlencode(form_data)
-        r = self.http.request('POST', 'https://colornos.com/sensors/temperature.php', body=encoded_data, headers=headers)
-        response = r.data.decode('utf-8')
-        with open("/home/pi/Start/plugin_response.txt", "w") as f2:
-            f2.write(response)
-        log.info('Finished plugin: ' + __name__)
-        return response
+            encoded_data = urllib.parse.urlencode(form_data)
+            r = self.http.request('POST', 'https://colornos.com/sensors/temperature.php', body=encoded_data, headers=headers)
+            response = r.data.decode('utf-8')
+            with open("/home/pi/Start/plugin_response.txt", "w") as f2:
+                f2.write(response)
+            log.info('Finished plugin: ' + __name__)
+            return response
 
 # Main Script Code
 Char_temperature = '00002A1C-0000-1000-8000-00805f9b34fb'  # temperature data
 
 def sanitize_timestamp(timestamp):
-    # This function is expected to convert or sanitize the timestamp
-    # from the Bluetooth device. If the original timestamp format is already
-    # suitable, it might simply return the current Unix time.
     retTS = time.time()
     return retTS
 
 def decodetemperature(handle, values):
-    # This function decodes the temperature data received from the Bluetooth device.
-    # The unpacking format '<BHxxxxxxI' is specific to the data structure sent by the device.
-    # This might differ based on your device's specifications.
     data = unpack('<BHxxxxxxI', bytes(values[0:14]))
     retDict = {}
-    retDict["valid"] = (data[0] == 0x02)  # Checks if the first byte indicates valid data
-    retDict["temperature"] = data[1]      # Temperature value
-    retDict["timestamp"] = sanitize_timestamp(data[2])  # Timestamp of the reading
+    retDict["valid"] = (data[0] == 0x02)
+    retDict["temperature"] = data[1]
+    retDict["timestamp"] = sanitize_timestamp(data[2])
     return retDict
 
 def processIndication(handle, values):
-    # This function processes the indication received from the Bluetooth device.
-    # It checks the handle to determine if the indication is for temperature data
-    # and then processes it accordingly.
     if handle == handle_temperature:
         result = decodetemperature(handle, values)
         if result not in temperaturedata:
             log.info(str(result))
             temperaturedata.append(result)
         else:
-            log.info('Duplicate temperature data record')
+            log.info('Duplicate temperaturedata record')
     else:
         log.debug('Unhandled Indication encountered')
 
@@ -122,7 +113,7 @@ def continuous_scan(devname):
 
 def scan_for_device(devname):
     try:
-        found_devices = adapter.scan(timeout=3)  # Reduced scanning timeout
+        found_devices = adapter.scan(timeout=5)
         for device in found_devices:
             if device['name'] == devname:
                 return True
@@ -133,7 +124,7 @@ def scan_for_device(devname):
 
 def connect_device(address):
     device_connected = False
-    tries = 3  # Reduced number of tries
+    tries = 5
     device = None
 
     while not device_connected and tries > 0:
@@ -143,10 +134,10 @@ def connect_device(address):
         except pygatt.exceptions.NotConnectedError as e:
             log.error(f"Connection attempt failed: {e}")
             tries -= 1
-            time.sleep(0.5)  # Reduced delay between retries
+            time.sleep(1)  # Delay between retries
         except Exception as e:
             log.error(f"Unexpected error: {e}")
-            break
+            break  # Exit loop on unexpected errors
 
     return device
 
@@ -195,15 +186,11 @@ adapter.start()
 
 plugin = Plugin()
 
-# Directly connect to the device if BLE address is known
-if ble_address:
-    device = connect_device(ble_address)
-else:
-    # Use continuous_scan if BLE address is not known
-    continuous_scan(device_name)
-    device = connect_device(ble_address)
+# Replace wait_for_device with continuous_scan
+continuous_scan(device_name)
 
 # Proceed with the rest of the script
+device = connect_device(ble_address)
 if device:
     temperaturedata = []
     handle_temperature = device.get_handle(Char_temperature)
